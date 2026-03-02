@@ -19,27 +19,15 @@ mod test_maintenance_mode;
 
 use events::{
     emit_batch_funds_locked, emit_batch_funds_released, emit_bounty_initialized,
-    emit_deprecation_state_changed, emit_funds_locked, emit_funds_refunded, emit_funds_released,
-    emit_maintenance_mode_changed, emit_risk_flags_updated, BatchFundsLocked, BatchFundsReleased,
-    BountyEscrowInitialized, ClaimCancelled, ClaimCreated, ClaimExecuted, DeprecationStateChanged,
-    FundsLocked, FundsRefunded, FundsReleased, MaintenanceModeChanged, RiskFlagsUpdated,
-    EVENT_VERSION_V2,
-    emit_participant_filter_mode_changed, emit_ticket_claimed, emit_ticket_issued,
-    BatchFundsLocked, BatchFundsReleased, BountyEscrowInitialized, ClaimCancelled, ClaimCreated,
-    ClaimExecuted, DeprecationStateChanged, FundsLocked, FundsRefunded, FundsReleased,
-    ParticipantFilterModeChanged, TicketClaimed, TicketIssued, EVENT_VERSION_V2,
-    EVENT_VERSION_V2,
-    emit_batch_funds_locked, emit_batch_funds_released, emit_bounty_initialized, emit_funds_locked,
-    emit_funds_refunded, emit_funds_released, emit_risk_flags_updated, BatchFundsLocked,
-    BatchFundsReleased, BountyEscrowInitialized, ClaimCancelled, ClaimCreated, ClaimExecuted,
-    FundsLocked, FundsRefunded, FundsReleased, RiskFlagsUpdated, EVENT_VERSION_V2,
-    emit_funds_refunded, emit_funds_released, emit_maintenance_mode_changed, BatchFundsLocked,
-    BatchFundsReleased, BountyEscrowInitialized, ClaimCancelled, ClaimCreated, ClaimExecuted,
-    FundsLocked, FundsRefunded, FundsReleased, MaintenanceModeChanged, EVENT_VERSION_V2,
-    emit_funds_locked_anon, emit_funds_refunded, emit_funds_released, emit_ticket_claimed,
-    emit_ticket_issued, BatchFundsLocked, BatchFundsReleased, BountyEscrowInitialized,
-    ClaimCancelled, ClaimCreated, ClaimExecuted, FundsLocked, FundsLockedAnon, FundsRefunded,
-    FundsReleased, TicketClaimed, TicketIssued, EVENT_VERSION_V2,
+    emit_deprecation_state_changed, emit_funds_locked, emit_funds_locked_anon,
+    emit_funds_refunded, emit_funds_released, emit_maintenance_mode_changed,
+    emit_participant_filter_mode_changed, emit_risk_flags_updated,
+    emit_ticket_claimed, emit_ticket_issued,
+    BatchFundsLocked, BatchFundsReleased, BountyEscrowInitialized,
+    ClaimCancelled, ClaimCreated, ClaimExecuted, DeprecationStateChanged,
+    FundsLocked, FundsLockedAnon, FundsRefunded, FundsReleased,
+    MaintenanceModeChanged, ParticipantFilterModeChanged,
+    RiskFlagsUpdated, TicketClaimed, TicketIssued, EVENT_VERSION_V2,
 };
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, token, vec, Address, Env,
@@ -530,16 +518,7 @@ pub enum Error {
     NotAnonymousEscrow = 36,
     /// Use get_escrow_info_v2 for anonymous escrows
     UseGetEscrowInfoV2ForAnonymous = 37,
-    CapabilityNotFound = 23,
-    CapabilityExpired = 24,
-    CapabilityRevoked = 25,
-    CapabilityActionMismatch = 26,
-    CapabilityAmountExceeded = 27,
-    CapabilityUsesExhausted = 28,
-    CapabilityExceedsAuthority = 29,
-    InvalidAssetId = 30,
-    /// Returned when new locks/registrations are disabled (contract deprecated)
-    ContractDeprecated = 30,
+
 }
 
 pub const RISK_FLAG_HIGH_RISK: u32 = 1 << 0;
@@ -1284,10 +1263,6 @@ impl BountyEscrowContract {
         Ok(())
     }
 
-    /// Alias for set_whitelist to match some tests
-    pub fn set_whitelist_entry(env: Env, address: Address, whitelisted: bool) -> Result<(), Error> {
-        Self::set_whitelist(env, address, whitelisted)
-    }
 
     fn next_capability_id(env: &Env) -> u64 {
         let last_id: u64 = env
@@ -4458,7 +4433,10 @@ mod test_deadline_variants;
 #[cfg(test)]
 mod test_query_filters;
 #[cfg(test)]
+mod test_serialization_compatibility;
+#[cfg(test)]
 mod test_sandbox;
+#[cfg(test)]
 mod test_receipts;
 #[cfg(test)]
 mod test_status_transitions;

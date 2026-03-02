@@ -54,6 +54,7 @@ mod test {
             !monitoring::verify_invariants(&env),
             "Invariants should fail when error_count > operation_count"
         );
+
         env.as_contract(&client.address, || {
             // Record a single successful operation
             monitoring::track_operation(&env, Symbol::new(&env, "op1"), admin.clone(), true);
@@ -90,11 +91,6 @@ mod test {
             env.storage().persistent().set(&op_key, &5u64);
             env.storage().persistent().set(&usr_key, &10u64);
 
-        // Verify that verification detects the drift
-        assert!(
-            !monitoring::verify_invariants(&env),
-            "Invariants should fail when unique_users > operation_count"
-        );
             // Verify that verification detects the drift
             assert!(!monitoring::verify_invariants(&env), "Invariants should fail when unique_users > operation_count");
         });

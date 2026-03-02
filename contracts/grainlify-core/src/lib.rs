@@ -451,6 +451,12 @@ mod monitoring {
         check_invariants(env).healthy
     }
 }
+
+#[cfg(test)]
+mod test_core_monitoring;
+#[cfg(test)]
+mod test_serialization_compatibility;
+
 // ==================== END MONITORING MODULE ====================
 
 // ============================================================================
@@ -542,7 +548,8 @@ pub struct CoreConfigSnapshot {
     pub admin: Option<Address>,
     pub version: u32,
     pub previous_version: Option<u32>,
-    pub multisig_config: Option<MultiSigConfig>,
+    pub multisig_threshold: u32,
+    pub multisig_signers: Vec<Address>,
 }
 
 // ============================================================================
@@ -1032,13 +1039,19 @@ impl GrainlifyContract {
             .unwrap_or(0)
             + 1;
 
+        let (multisig_threshold, multisig_signers) = match MultiSig::get_config_opt(&env) {
+            Some(cfg) => (cfg.threshold, cfg.signers),
+            None => (0u32, Vec::new(&env)),
+        };
+
         let snapshot = CoreConfigSnapshot {
             id: next_id,
             timestamp: env.ledger().timestamp(),
             admin: env.storage().instance().get(&DataKey::Admin),
             version: env.storage().instance().get(&DataKey::Version).unwrap_or(0),
             previous_version: env.storage().instance().get(&DataKey::PreviousVersion),
-            multisig_config: MultiSig::get_config_opt(&env),
+            multisig_threshold,
+            multisig_signers,
         };
 
         env.storage()
@@ -1103,6 +1116,36 @@ impl GrainlifyContract {
         env.storage().instance().get(&DataKey::ChainId)
     }
 
+    /// Retrieves the network identifier.
+    pub fn get_network_id(env: Env) -> Option<String> {
+        env.storage().instance().get(&DataKey::NetworkId)
+    }
+
+    /// Retrieves both chain and network identifiers as a tuple.
+    pub fn get_network_info(env: Env) -> (Option<String>, Option<String>) {
+        let chain_id = env.storage().instance().get(&DataKey::ChainId);
+        let network_id = env.storage().instance().get(&DataKey::NetworkId);
+        (chain_id, network_id)
+    }
+
+    /// Initializes the contract with admin and optional chain/network configuration.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Address authorized to perform operations
+    /// * `chain_id` - Optional chain identifier (e.g., "stellar", "ethereum")
+    /// * `network_id` - Optional network identifier (e.g., "mainnet", "testnet")
+    pub fn init_with_network(env: Env, admin: Address, chain_id: String, network_id: String) {
+        if env.storage().instance().has(&DataKey::Admin) {
+            panic!("Already initialized");
+        }
+
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::Version, &VERSION);
+        env.storage().instance().set(&DataKey::ChainId, &chain_id);
+        env.storage().instance().set(&DataKey::NetworkId, &network_id);
+    }
+
     /// Restores core configuration from a previously captured snapshot (admin-only).
     pub fn restore_config_snapshot(env: Env, snapshot_id: u64) {
         let admin: Address = env
@@ -1138,9 +1181,14 @@ impl GrainlifyContract {
             None => env.storage().instance().remove(&DataKey::PreviousVersion),
         }
 
-        match snapshot.multisig_config {
-            Some(config) => MultiSig::set_config(&env, config),
-            None => MultiSig::clear_config(&env),
+        if snapshot.multisig_threshold > 0 {
+            let config = multisig::MultiSigConfig {
+                signers: snapshot.multisig_signers.clone(),
+                threshold: snapshot.multisig_threshold,
+            };
+            MultiSig::set_config(&env, config);
+        } else {
+            MultiSig::clear_config(&env);
         }
 
         env.events().publish(
@@ -1986,7 +2034,14 @@ mod test {
         assert_eq!(state.to_version, 3);
     }
 
-    // Export WASM for testing upgrade/rollback scenarios
-    // #[cfg(test)]
-    // pub const WASM: &[u8] = include_bytes!("../target/wasm32v1-none/release/grainlify_core.wasm");
+    // Export WASM for testing upgrade/rollback scenarios.
+    //
+    // These tests are optional because the compiled WASM artifact isn't always
+    // available in CI/local `cargo test` flows.
+    #[cfg(all(test, feature = "upgrade_rollback_tests"))]
+    pub const WASM: &[u8] = include_bytes!("../target/wasm32v1-none/release/grainlify_core.wasm");
+
+    #[cfg(all(test, feature = "upgrade_rollback_tests"))]
+    mod upgrade_rollback_tests;
+
 }
